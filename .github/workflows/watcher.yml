@@ -8,6 +8,11 @@ on:
     # 1시간 주기로도 글을 놓치지 않는다.
     - cron: '17 * * * *'
   workflow_dispatch:
+    inputs:
+      test_notify:
+        description: '텔레그램 전송 경로만 테스트 (탐지는 건너뜀)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,7 +54,28 @@ jobs:
             exit 1
           fi
 
+      - name: 텔레그램 전송 테스트
+        if: inputs.test_notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - <<'PY'
+          import notify, time, watcher
+          post = {"id": "citest", "subreddit": "CryptoReferrals", "author": "testuser",
+                  "title": "I need a crypto debit card no kyc to make an urgent payment",
+                  "selftext": "This is a test from GitHub Actions. Not a real post.",
+                  "score": None, "num_comments": None,
+                  "permalink": "/r/CryptoReferrals/comments/test/x/",
+                  "created_utc": time.time() - 600}
+          msg = ("\U0001F9EA <b>GitHub Actions 전송 테스트</b> \u2014 실제 글 아님\n\n"
+                 + notify.format_post(post, watcher.match(post), 600))
+          notify.send_html(msg, disable_preview=True)
+          print("전송 성공")
+          PY
+
       - name: 탐지 및 텔레그램 포워딩
+        if: ${{ !inputs.test_notify }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -62,6 +88,7 @@ jobs:
         run: python3 watcher.py --once
 
       - name: 중복방지 상태 저장
+        if: ${{ !inputs.test_notify }}
         run: |
           set -euo pipefail
           if [ -z "$(git status --porcelain state/seen.json 2>/dev/null)" ]; then
