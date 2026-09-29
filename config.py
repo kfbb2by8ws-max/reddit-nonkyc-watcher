@@ -27,14 +27,21 @@ SUBREDDIT_LIST = [
     "CryptoCurrency", "CryptoCurrencies", "CryptoMarkets", "Bitcoin",
     "BitcoinBeginners", "btc", "CryptoTechnology", "defi", "ethereum",
     # 프라이버시 + 카드 + 로컬
-    "Monero", "privacy", "privacytoolsIO", "CryptoCards",
+    # r/CryptoCards 는 429 재시도 소진으로 한 번도 안 들어왔다 (2026-09-29).
+    "Monero", "privacy", "privacytoolsIO",
     "cryptocurrencycards", "dubai", "UAE", "expats",
     # 검색이 막히는 CI 를 보완하는 확장.
     # 실측 매칭 3건이 전부 목록 밖에서 나왔고 r/CryptoReferrals 가 실제 히트였다.
     # 존재하지 않는 서브가 섞여도 200 을 주고 유효한 것만 반환한다(실측 확인).
-    "CryptoReferrals", "digitalnomad", "digitalnomads", "freelance",
+    # r/digitalnomads 는 HTTP 403 (비공개/차단). 요청만 낭비해서 제거했다.
+    "CryptoReferrals", "digitalnomad", "freelance",
     "Fintech", "ethtrader", "Crypto_com", "binance", "kraken",
 ]
+
+# 1일 주기 기준 커버가 모자란 서브 (2026-09-29 실측).
+# 25칸이 각각 10.6h / 4.5h / 6.5h 밖에 안 돼서 하루 한 번으로는 놓친다.
+# 맥 데몬(15분)은 문제없고, 짧은 주기 워크플로를 따로 둘 때 이 목록을 쓴다.
+HOT_SUBREDDITS = ["dubai", "UAE", "CryptoReferrals"]
 
 GROUP_SIZE = max(1, int(os.getenv("GROUP_SIZE", "9")))
 SUBREDDIT_GROUPS = [SUBREDDIT_LIST[i:i + GROUP_SIZE]
