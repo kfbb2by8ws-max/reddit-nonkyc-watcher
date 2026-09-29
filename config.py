@@ -6,37 +6,40 @@ import os
 # 주거용 회선 = 1(기본), CI = 0.
 ENABLE_SEARCH = os.getenv("ENABLE_SEARCH", "1") not in ("0", "false", "False", "")
 
-# ── 폴링 대상: 멀티레딧 그룹 ────────────────────────────────
-# 멀티레딧(r/a+b+c)은 요청 1회로 여러 서브를 가져온다. 엔트리는 25칸 고정이고
-# 서브들이 나눠 갖는다. 한 그룹의 25칸이 POLL_INTERVAL 보다 긴 시간을
-# 커버해야 그 사이 올라온 글을 놓치지 않는다.
+# ── 폴링 대상 ──────────────────────────────────────────────
+# 멀티레딧(r/a+b+c)은 요청 1회로 여러 서브를 가져오지만 엔트리 25칸을
+# 서브들이 나눠 갖는다. 즉 묶을수록 커버 시간이 짧아진다.
 #
-# 실측 (2026-09-29, 단독 실행, 60초 간격):
-#   단일 CryptoCurrency → 25건 / 2897분 (48시간)
-#   멀티 3개            → 25건 / 1042분 (17시간)
-#   멀티 8개            → 25건 /  598분 (10시간)
-#   멀티 17개(전체)      → 25건 /   95분  ← 최악의 경우도 폴링주기의 6배
+# 실측 (2026-09-29):
+#   단일 r/CryptoCurrency → 25건 / 2897분 (48시간)
+#   단일 r/Bitcoin        → 25건 / 1524분 (25시간)
+#   멀티 3개              → 25건 / 1042분 (17시간)
+#   멀티 8개              → 25건 /  598분 (10시간)
+#   멀티 17개             → 25건 /   95분
 #
-# 17개를 한 요청에 다 넣어도 95분을 커버해서 15분 주기엔 충분하지만,
-# 한 서브가 갑자기 활발해지면 칸을 독식한다 (위 17개 측정에서 r/UAE 가 10칸).
-# 그래서 2그룹으로 나눠 여유를 둔다. 요청 2회면 비용도 미미하다.
-SUBREDDIT_GROUPS = [
-    # 크립토 코어 (고~중볼륨)
-    ["CryptoCurrency", "CryptoCurrencies", "CryptoMarkets", "Bitcoin",
-     "BitcoinBeginners", "btc", "CryptoTechnology", "defi", "ethereum"],
+# 따라서 묶음 크기는 폴링 주기에 맞춰야 한다. 커버 < 주기면 글을 놓치고,
+# 그 경우 로그에 경고가 찍힌다.
+#
+#   맥 데몬 (15분 주기, 무료)  → GROUP_SIZE=9  : 3요청 ≈ 2분, 커버 10시간+
+#   GitHub Actions (1일 1회)   → GROUP_SIZE=1  : 26요청 ≈ 18분, 커버 24시간+
+SUBREDDIT_LIST = [
+    # 크립토 코어
+    "CryptoCurrency", "CryptoCurrencies", "CryptoMarkets", "Bitcoin",
+    "BitcoinBeginners", "btc", "CryptoTechnology", "defi", "ethereum",
     # 프라이버시 + 카드 + 로컬
-    ["Monero", "privacy", "privacytoolsIO", "CryptoCards",
-     "cryptocurrencycards", "dubai", "UAE", "expats"],
-    # 검색 피드가 막히는 환경(CI)을 보완하기 위한 확장.
-    # 실측에서 매칭 3건이 전부 목록 밖에서 나왔고, 그 중 r/CryptoReferrals 가
-    # 실제 히트였다. 존재하지 않는 서브가 섞여도 멀티피드는 200 을 주고
-    # 유효한 것만 반환하므로(실측 확인) 미검증 후보를 넣어도 무해하다.
-    ["CryptoReferrals", "digitalnomad", "digitalnomads", "freelance",
-     "Fintech", "ethtrader", "Crypto_com", "binance", "kraken"],
+    "Monero", "privacy", "privacytoolsIO", "CryptoCards",
+    "cryptocurrencycards", "dubai", "UAE", "expats",
+    # 검색이 막히는 CI 를 보완하는 확장.
+    # 실측 매칭 3건이 전부 목록 밖에서 나왔고 r/CryptoReferrals 가 실제 히트였다.
+    # 존재하지 않는 서브가 섞여도 200 을 주고 유효한 것만 반환한다(실측 확인).
+    "CryptoReferrals", "digitalnomad", "digitalnomads", "freelance",
+    "Fintech", "ethtrader", "Crypto_com", "binance", "kraken",
 ]
 
-# 하위 호환 / 참고용 평면 목록
-SUBREDDITS = [s for g in SUBREDDIT_GROUPS for s in g]
+GROUP_SIZE = max(1, int(os.getenv("GROUP_SIZE", "9")))
+SUBREDDIT_GROUPS = [SUBREDDIT_LIST[i:i + GROUP_SIZE]
+                    for i in range(0, len(SUBREDDIT_LIST), GROUP_SIZE)]
+SUBREDDITS = list(SUBREDDIT_LIST)
 
 # ── 전체 Reddit 검색 (느리지만 동작함) ──
 SEARCH_QUERIES = [
@@ -74,6 +77,8 @@ EXCLUDE_TERMS = [
     "use my link", "sign up with", "promo code",
 ]
 
-POLL_INTERVAL_SECONDS = 900   # 15분 (레이트리밋 때문에 5분은 무리)
+# 데몬 루프 간격이자 커버리지 자가점검의 기준값.
+# 맥 데몬 = 900(15분), CI = 86400(1일, 워크플로에서 주입).
+POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "900"))
 POSTS_PER_SUBREDDIT = 25
 MAX_AGE_HOURS = 48            # 검색 색인 지연 감안해서 넉넉히
