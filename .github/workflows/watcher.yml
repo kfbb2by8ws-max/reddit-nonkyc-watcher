@@ -24,6 +24,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 시크릿 확인
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # 값은 출력하지 않고 존재 여부만 검사한다.
+          # 비어 있으면 매칭이 나오는 순간에야 크래시하므로 여기서 먼저 막는다.
+          fail=0
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN 시크릿이 비어 있다."
+            fail=1
+          else
+            echo "TELEGRAM_BOT_TOKEN 설정됨 (${#TELEGRAM_BOT_TOKEN}자)"
+          fi
+          if [ -z "${TELEGRAM_CHAT_ID}" ]; then
+            echo "::error::TELEGRAM_CHAT_ID 시크릿이 비어 있다."
+            fail=1
+          else
+            echo "TELEGRAM_CHAT_ID 설정됨 (${#TELEGRAM_CHAT_ID}자)"
+          fi
+          if [ $fail -ne 0 ]; then
+            echo "gh secret set TELEGRAM_BOT_TOKEN --repo $GITHUB_REPOSITORY 로 다시 등록할 것"
+            exit 1
+          fi
+
       - name: 탐지 및 텔레그램 포워딩
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

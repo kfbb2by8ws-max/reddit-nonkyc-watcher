@@ -51,7 +51,7 @@ def save_seen(seen):
     cutoff = time.time() - SEEN_TTL_DAYS * 86400
     pruned = {k: v for k, v in seen.items() if v > cutoff}
     tmp = SEEN_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(pruned))
+    tmp.write_text(json.dumps(pruned, sort_keys=True) + "\n")
     tmp.replace(SEEN_PATH)
 
 
