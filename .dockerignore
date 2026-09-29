@@ -1,0 +1,14 @@
+.env
+.env.example
+seen.json
+feed_cache.json
+watcher.log
+watcher.out
+watcher.pid
+__pycache__/
+*.pyc
+venv/
+reddit_client.py
+start.sh
+stop.sh
+README.md

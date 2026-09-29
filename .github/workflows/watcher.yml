@@ -1,0 +1,59 @@
+name: watcher
+
+on:
+  schedule:
+    # 매시 17분. 정시(0분)는 전 세계 스케줄이 몰려서 지연이 커진다.
+    # 1시간 주기인 이유: 비공개 레포 Actions 무료 한도가 2,000분/월이라
+    # 15분 주기(월 3,000분+)는 초과한다. 그룹 커버리지가 10시간대이므로
+    # 1시간 주기로도 글을 놓치지 않는다.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # 겹쳐 돌면 같은 IP 레이트리밋을 두고 경쟁하고 state push 가 충돌한다.
+  group: watcher
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 탐지 및 텔레그램 포워딩
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 데이터센터 IP 에서는 Reddit 이 search.rss 를 429 로 막는다.
+          # 켜두면 백오프로 Actions 분만 태운다.
+          ENABLE_SEARCH: '0'
+          # 매 실행이 새 컨테이너라 ETag 캐시는 의미가 없다.
+          USE_FEED_CACHE: '0'
+          DATA_DIR: ${{ github.workspace }}/state
+        run: python3 watcher.py --once
+
+      - name: 중복방지 상태 저장
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain state/seen.json 2>/dev/null)" ]; then
+            echo "새로 포워딩한 글 없음 — 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/seen.json
+          git commit -m "state: seen.json 갱신 [skip ci]"
+          # 다른 실행이 먼저 push 했을 수 있으니 rebase 후 재시도
+          for i in 1 2 3; do
+            if git push; then
+              echo "push 성공"; exit 0
+            fi
+            echo "push 실패 — rebase 후 재시도 ($i/3)"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            sleep 5
+          done
+          echo "push 3회 실패"; exit 1

@@ -1,0 +1,14 @@
+# 로컬 실행 상태 (루트만 — state/seen.json 은 CI 상태라 커밋한다)
+/seen.json
+/feed_cache.json
+/watcher.log
+/watcher.out
+/watcher.pid
+
+# 비밀
+.env
+
+# 파이썬
+__pycache__/
+*.pyc
+venv/

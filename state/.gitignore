@@ -1,0 +1,4 @@
+# 로그와 피드 캐시는 커밋하지 않는다. seen.json 만 영속화한다.
+watcher.log
+feed_cache.json
+*.tmp
