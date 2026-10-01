@@ -28,7 +28,10 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
 # 실측: 서브레딧 피드는 30~40초면 안정적으로 200.
 #       search.rss 는 훨씬 빡세서 누적 4분쯤 벌려야 통과했다.
 SPACING_FEED = 40.0       # /r/<sub>/new/.rss
-SPACING_SEARCH = 180.0    # /search.rss
+SPACING_SEARCH = 180.0    # /search.rss 끼리
+# 검색은 직전 피드 요청과도 벌려야 한다. 피드 40초 뒤에 치면 매번 429,
+# 90초 백오프 후 재시도(피드로부터 ~220초)에서야 200이 났다 (2026-09-30 로그).
+SPACING_SEARCH_AFTER_ANY = 240.0
 MAX_RETRIES = 3
 
 log = logging.getLogger("rss")
@@ -68,7 +71,8 @@ def _throttle(is_search=False):
     now = time.time()
     wait = SPACING_FEED - (now - _last_any[0])
     if is_search:
-        wait = max(wait, SPACING_SEARCH - (now - _last_search[0]))
+        wait = max(SPACING_SEARCH_AFTER_ANY - (now - _last_any[0]),
+                   SPACING_SEARCH - (now - _last_search[0]))
     if wait > 0:
         log.debug("스로틀 %.0f초 대기", wait)
         time.sleep(wait)
