@@ -2,13 +2,10 @@ name: watcher
 
 on:
   schedule:
-    # 매일 UTC 06:17 = 두바이 오전 10:17.
-    # 같은 계정의 mena-otc-monitor 가 07:00 UTC 라 겹치지 않게 앞에 둔다.
-    # 정시(0분)는 전 세계 스케줄이 몰려 지연이 커지므로 피한다.
-    #
-    # 1일 1회인 이유: Actions 무료 한도가 계정 전체 2,000분/월 공유다.
-    # 서브를 단독 요청하므로(커버리지 확보) 실행당 약 18분 → 월 약 540분.
-    - cron: '17 6 * * *'
+    # 3시간마다 :17분 (두바이 01:17, 04:17, 07:17 ... 22:17).
+    # 2026-10-06 공개 저장소로 전환 → Actions 분 무제한이라 1일 1회 제약 해제.
+    # 정시(0분)는 전 세계 스케줄이 몰려 지연/누락이 커지므로 피한다.
+    - cron: '17 */3 * * *'
   workflow_dispatch:
     inputs:
       test_notify:
@@ -27,7 +24,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -86,11 +83,11 @@ jobs:
           ENABLE_SEARCH: '0'
           # 매 실행이 새 컨테이너라 ETag 캐시는 의미가 없다.
           USE_FEED_CACHE: '0'
-          # 1일 1회라 멀티레딧으로 묶으면 커버(10시간)가 모자라 글을 놓친다.
-          # 서브를 단독 요청해 25칸을 한 서브가 다 쓰게 한다 (커버 24시간+).
-          GROUP_SIZE: '1'
+          # 3시간 주기면 3개 묶음(커버 ~17시간)으로 충분하다.
+          # 요청 8회 ≈ 8분 — 단독 요청(26회, ~25분)보다 Reddit 부담도 적다.
+          GROUP_SIZE: '3'
           # 커버리지 자가점검 기준값 (커버 < 주기면 경고를 남긴다)
-          POLL_INTERVAL_SECONDS: '86400'
+          POLL_INTERVAL_SECONDS: '10800'
           DATA_DIR: ${{ github.workspace }}/state
         run: python3 watcher.py --once
 
