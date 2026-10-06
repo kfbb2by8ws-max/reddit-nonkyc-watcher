@@ -61,6 +61,10 @@ SEARCH_QUERIES = [
 CARD_TERMS = [
     "crypto card", "debit card", "virtual card", "prepaid card",
     "credit card", "visa card", "mastercard", "crypto visa",
+    # 확장 (2026-10-06): 1일 이후 매칭 0건이라 표현 변형을 넓힘
+    "crypto debit", "virtual visa", "virtual mastercard", "prepaid visa",
+    "spending card", "payment card", "bank card", "debit cards", "crypto cards",
+    "a card that", "card that", "card which", "card for", "card without", "card with no",  # 'card' 단독은 cardano 오탐
     "카드",
 ]
 
@@ -68,7 +72,21 @@ NOKYC_TERMS = [
     "no kyc", "non kyc", "non-kyc", "nonkyc", "without kyc",
     "kyc free", "kyc-free", "no verification", "without verification",
     "no id", "no identity", "anonymous card", "unverified",
+    # 확장 (2026-10-06)
+    "no-kyc", "kycless", "kyc-less", "kyc free", "without id", "without an id",
+    "no documents", "no docs", "no passport", "no selfie", "no verify",
+    "skip kyc", "avoid kyc", "bypass kyc", "kyc not required", "doesn't require kyc",
+    "does not require kyc", "anonymous debit", "anonymous visa", "privacy card",
     "논케이와이씨", "kyc 없",
+]
+
+# 크립토 맥락이 있어야 매칭. 없으면 일반 카드 글("no kyc required" 교통카드 등)이 걸린다.
+# 제목·본문·서브레딧 이름 중 하나에 있으면 됨. 영문은 단어 경계로 비교 (eth ⊄ method, 짧은 약어는 뒤쪽도).
+CRYPTO_TERMS = [
+    "crypto", "bitcoin", "btc", "usdt", "usdc", "stablecoin", "stablecoins",
+    "tether", "ethereum", "eth", "monero", "xmr", "web3", "defi",
+    "coin", "coins", "coinbase", "binance", "kraken", "bybit",
+    "코인", "크립토", "비트코인", "스테이블",
 ]
 
 # 있으면 "구하는 글"일 확률이 높음. 없어도 매칭은 되지만 우선순위 표시가 붙음.

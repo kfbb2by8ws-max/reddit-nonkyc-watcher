@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import sys
 import time
 
@@ -56,6 +57,16 @@ def save_seen(seen):
 
 
 # ── 매칭 ────────────────────────────────────────────────────
+def _crypto_pat(t):
+    if not t.isascii():
+        return re.escape(t)                 # 한글은 조사가 붙으니 부분일치
+    tail = r"\b" if len(t) <= 4 else ""     # 짧은 약어는 양쪽 경계 (eth ⊄ ethics)
+    return rf"\b{re.escape(t)}{tail}"
+
+
+_CRYPTO_RE = re.compile("|".join(_crypto_pat(t) for t in config.CRYPTO_TERMS))
+
+
 def match(post):
     text = f"{post.get('title','')} {post.get('selftext','')}".lower()
 
@@ -65,6 +76,8 @@ def match(post):
     card = [t for t in config.CARD_TERMS if t in text]
     nokyc = [t for t in config.NOKYC_TERMS if t in text]
     if not card or not nokyc:
+        return None
+    if not _CRYPTO_RE.search(f"{text} {post.get('subreddit','').lower()}"):
         return None
 
     intent = [t for t in config.INTENT_TERMS if t in text]
